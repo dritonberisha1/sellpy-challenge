@@ -1,29 +1,32 @@
-import React, { Fragment, useState, useEffect } from 'react'
-import Card from '@material-ui/core/Card'
-import CardContent from '@material-ui/core/CardContent'
-import List from '@material-ui/core/List'
-import ListItem from '@material-ui/core/ListItem'
-import ListItemText from '@material-ui/core/ListItemText'
-import ListItemIcon from '@material-ui/core/ListItemIcon'
-import ReceiptIcon from '@material-ui/icons/Receipt'
-import Typography from '@material-ui/core/Typography'
+import React, { Fragment, useState, useEffect } from 'react';
+import Card from '@material-ui/core/Card';
+import CardContent from '@material-ui/core/CardContent';
+import List from '@material-ui/core/List';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemText from '@material-ui/core/ListItemText';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ReceiptIcon from '@material-ui/icons/Receipt';
+import CheckboxIcon from '@material-ui/icons/CheckBox';
+import Typography from '@material-ui/core/Typography';
+import taskService from '../../services/task-service';
 import { ToDoListForm } from './ToDoListForm'
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+const STATUSES = {
+  OPEN: 'open',
+  DONE: 'done'
+};
 
 const getPersonalTodos = () => {
-  return sleep(1000).then(() => Promise.resolve({
-    '0000000001': {
-      id: '0000000001',
-      title: 'First List',
-      todos: ['First todo of first list!']
-    },
-    '0000000002': {
-      id: '0000000002',
-      title: 'Second List',
-      todos: ['First todo of second list!']
-    }
-  }))
+  return taskService.fetchTaskLists();
+}
+
+const areAllTasksDone = (list) => {
+  const tasks = list && list.tasks;
+  for (let index = 0; index < tasks.length; index++) {
+    if (tasks[index].status === STATUSES.OPEN)
+      return false;
+  }
+  return true;
 }
 
 export const ToDoLists = ({ style }) => {
@@ -34,7 +37,6 @@ export const ToDoLists = ({ style }) => {
     getPersonalTodos()
       .then(setToDoLists)
   }, [])
-
   if (!Object.keys(toDoLists).length) return null
   return <Fragment>
     <Card style={style}>
@@ -54,6 +56,7 @@ export const ToDoLists = ({ style }) => {
               <ReceiptIcon />
             </ListItemIcon>
             <ListItemText primary={toDoLists[key].title} />
+            {areAllTasksDone(toDoLists[key]) && <CheckboxIcon color='primary' />}
           </ListItem>)}
         </List>
       </CardContent>
@@ -61,12 +64,15 @@ export const ToDoLists = ({ style }) => {
     {toDoLists[activeList] && <ToDoListForm
       key={activeList} // use key to make React recreate component to reset internal state
       toDoList={toDoLists[activeList]}
-      saveToDoList={(id, { todos }) => {
+      saveToDoList={(id, { tasks }) => {
         const listToUpdate = toDoLists[id]
-        setToDoLists({
-          ...toDoLists,
-          [id]: { ...listToUpdate, todos }
-        })
+        taskService.updateTaskToList(id, { ...listToUpdate, tasks })
+          .then(data => {
+            setToDoLists({
+              ...toDoLists,
+              [id]: { ...listToUpdate, tasks }
+            });
+          });
       }}
     />}
   </Fragment>
